@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+func index_html(w http.ResponseWriter) {
+	index, err := os.ReadFile("./frontend-dist/index.html")
+	if err != nil {
+		http.Error(w, "Not Found", 404)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(index)
+}
+
 func main() {
 	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("", "Request-URL", r.URL.String())
@@ -17,7 +27,7 @@ func main() {
 		if len(match) > 1 {
 			index, err := os.ReadFile("./frontend-dist" + match[1])
 			if err != nil {
-				http.Error(w, "Not Found", 404)
+				index_html(w)
 				return
 			}
 			if strings.Contains(match[1], ".js") {
@@ -33,24 +43,13 @@ func main() {
 			if len(match) > 1 {
 				file, err := os.ReadFile("./frontend-dist" + match[1])
 				if err != nil {
-					index, err := os.ReadFile("./frontend-dist/index.html")
-					if err != nil {
-						http.Error(w, "Not Found", 404)
-						return
-					}
-					w.Header().Set("Content-Type", "text/html")
-					w.Write(index)
+					index_html(w)
+					return
 				}
 				w.Write(file)
 				return
 			} else {
-				index, err := os.ReadFile("./frontend-dist/index.html")
-				if err != nil {
-					http.Error(w, "Not Found", 404)
-					return
-				}
-				w.Header().Set("Content-Type", "text/html")
-				w.Write(index)
+				index_html(w)
 			}
 		}
 	}))
