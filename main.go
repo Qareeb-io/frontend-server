@@ -1,31 +1,36 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func index_html(w http.ResponseWriter) {
-	index, err := os.ReadFile("./frontend-dist/index.html")
+	index, err := os.Open("./frontend-dist/index.html")
 	if err != nil {
 		http.Error(w, "Not Found", 404)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Write(index)
+	io.Copy(w, index)
 }
 
 func main() {
 	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slog.Info("", "Request-URL", r.URL.String())
+		fmt.Printf("Request-URL %s", r.URL.String())
+		now := float64(time.Now().UnixNano())
+		defer func() { fmt.Printf(" (%f µs) \n", (float64(time.Now().UnixNano())-now)/1000.0) }()
 
 		re := regexp.MustCompile(`.*(/assets/.*)`)
 		match := re.FindStringSubmatch(r.URL.Path)
 		if len(match) > 1 {
-			index, err := os.ReadFile("./frontend-dist" + match[1])
+			file, err := os.Open("./frontend-dist" + match[1])
 			if err != nil {
 				index_html(w)
 				return
@@ -35,18 +40,18 @@ func main() {
 			} else if strings.Contains(match[1], ".css") {
 				w.Header().Set("Content-Type", "text/css")
 			}
-			w.Write(index)
 
+			io.Copy(w, file)
 		} else {
 			re := regexp.MustCompile(`.*(/.*)`)
 			match := re.FindStringSubmatch(r.URL.Path)
 			if len(match) > 1 {
-				file, err := os.ReadFile("./frontend-dist" + match[1])
+				file, err := os.Open("./frontend-dist" + match[1])
 				if err != nil {
 					index_html(w)
 					return
 				}
-				w.Write(file)
+				io.Copy(w, file)
 				return
 			} else {
 				index_html(w)
