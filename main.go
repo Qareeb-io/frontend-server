@@ -26,6 +26,10 @@ func main() {
 		fmt.Printf("Request-URL %s", r.URL.String())
 		now := float64(time.Now().UnixNano())
 		defer func() { fmt.Printf(" (%f µs) \n", (float64(time.Now().UnixNano())-now)/1000.0) }()
+		if r.URL.String() == "/" {
+			index_html(w)
+			return
+		}
 
 		re := regexp.MustCompile(`.*(/assets/.*)`)
 		match := re.FindStringSubmatch(r.URL.Path)
