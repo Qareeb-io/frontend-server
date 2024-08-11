@@ -5,6 +5,7 @@ on:
     paths:
       - 'main.go'
       - 'Dockerfile'
+      - .github/workflows/docker.yaml
 
 jobs:
   frontend-server-docker-build:
