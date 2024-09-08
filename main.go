@@ -43,6 +43,8 @@ func main() {
 				w.Header().Set("Content-Type", "text/javascript")
 			} else if strings.Contains(match[1], ".css") {
 				w.Header().Set("Content-Type", "text/css")
+			} else if strings.Contains(match[1], ".svg") {
+				w.Header().Set("Content-Type", "image/svg+xml")
 			}
 
 			io.Copy(w, file)
