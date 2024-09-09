@@ -1,13 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 )
 
@@ -21,7 +23,29 @@ func index_html(w http.ResponseWriter) {
 	io.Copy(w, index)
 }
 
+type MimeType struct {
+	Name      string
+	Mime_type string
+	Ext       string
+	Details   string
+}
+
 func main() {
+	data, err := os.ReadFile("mime_types.json")
+	if err != nil {
+		log.Fatalf("failed to read mime_types.json: %v", err)
+	}
+	mime_types := []MimeType{}
+	err = json.Unmarshal(data, &mime_types)
+	if err != nil {
+		log.Fatalf("failed to unmarshal mime_types.json: %v", err)
+	}
+
+	mime_map := make(map[string]string)
+	for _, mime := range mime_types {
+		mime_map[mime.Ext] = mime.Mime_type
+	}
+
 	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Request-URL %s", r.URL.String())
 		now := float64(time.Now().UnixNano())
@@ -39,14 +63,13 @@ func main() {
 				index_html(w)
 				return
 			}
-			if strings.Contains(match[1], ".js") {
-				w.Header().Set("Content-Type", "text/javascript")
-			} else if strings.Contains(match[1], ".css") {
-				w.Header().Set("Content-Type", "text/css")
-			} else if strings.Contains(match[1], ".svg") {
-				w.Header().Set("Content-Type", "image/svg+xml")
-			}
 
+			mime_type, ok := mime_map[filepath.Ext(match[1])]
+			if ok {
+				w.Header().Set("Content-Type", mime_type)
+			} else {
+				w.Header().Set("Content-Type", "text/plain")
+			}
 			io.Copy(w, file)
 		} else {
 			re := regexp.MustCompile(`.*(/.*)`)
@@ -56,6 +79,12 @@ func main() {
 				if err != nil {
 					index_html(w)
 					return
+				}
+				mime_type, ok := mime_map[filepath.Ext(match[1])]
+				if ok {
+					w.Header().Set("Content-Type", mime_type)
+				} else {
+					w.Header().Set("Content-Type", "text/plain")
 				}
 				io.Copy(w, file)
 				return
@@ -71,7 +100,7 @@ func main() {
 	}
 
 	slog.Info("Serving on port 5173")
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	if err != nil {
 		slog.Error("Error starting server", "error", err)
 	}
