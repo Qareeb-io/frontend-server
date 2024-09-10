@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"time"
 )
 
@@ -47,51 +45,33 @@ func main() {
 	}
 
 	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("Request-URL %s", r.URL.String())
+		fmt.Printf("Request-URL: %s\n", r.URL.String())
 		now := float64(time.Now().UnixNano())
 		defer func() { fmt.Printf(" (%f µs) \n", (float64(time.Now().UnixNano())-now)/1000.0) }()
-		if r.URL.String() == "/" {
+
+		if r.URL.Path != "/" && r.URL.Path[len(r.URL.Path)-1] == '/' {
+			http.Redirect(w, r, r.URL.Path[:len(r.URL.Path)-1], http.StatusMovedPermanently)
+			return
+		}
+
+		if r.URL.Path == "/" {
 			index_html(w)
 			return
 		}
 
-		re := regexp.MustCompile(`.*(/assets/.*)`)
-		match := re.FindStringSubmatch(r.URL.Path)
-		if len(match) > 1 {
-			file, err := os.Open("./frontend-dist" + match[1])
-			if err != nil {
-				index_html(w)
-				return
+		assetPath := "./frontend-dist" + r.URL.Path
+		if _, err := os.Stat(assetPath); err == nil {
+			ext := filepath.Ext(r.URL.Path)
+			mime_type := mime_map[ext]
+			if mime_type == "" {
+				mime_type = "text/plain"
 			}
-
-			mime_type, ok := mime_map[filepath.Ext(match[1])]
-			if ok {
-				w.Header().Set("Content-Type", mime_type)
-			} else {
-				w.Header().Set("Content-Type", "text/plain")
-			}
-			io.Copy(w, file)
-		} else {
-			re := regexp.MustCompile(`.*(/.*)`)
-			match := re.FindStringSubmatch(r.URL.Path)
-			if len(match) > 1 {
-				file, err := os.Open("./frontend-dist" + match[1])
-				if err != nil {
-					index_html(w)
-					return
-				}
-				mime_type, ok := mime_map[filepath.Ext(match[1])]
-				if ok {
-					w.Header().Set("Content-Type", mime_type)
-				} else {
-					w.Header().Set("Content-Type", "text/plain")
-				}
-				io.Copy(w, file)
-				return
-			} else {
-				index_html(w)
-			}
+			w.Header().Set("Content-Type", mime_type)
+			http.ServeFile(w, r, assetPath)
+			return
 		}
+
+		index_html(w)
 	}))
 
 	srv := &http.Server{
@@ -99,9 +79,9 @@ func main() {
 		Handler: nil,
 	}
 
-	slog.Info("Serving on port 5173")
+	log.Println("Serving on port 5173")
 	err = srv.ListenAndServe()
 	if err != nil {
-		slog.Error("Error starting server", "error", err)
+		log.Fatalf("Error starting server: %v", err)
 	}
 }
