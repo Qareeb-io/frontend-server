@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -29,6 +30,7 @@ type MimeType struct {
 }
 
 func main() {
+	redirect_http_on_host := os.Getenv("REDIRECT_TO_TLS_ON_HOST")
 	data, err := os.ReadFile("mime_types.json")
 	if err != nil {
 		log.Fatalf("failed to read mime_types.json: %v", err)
@@ -48,7 +50,15 @@ func main() {
 		fmt.Printf("Request-URL: %s\n", r.URL.String())
 		now := float64(time.Now().UnixNano())
 		defer func() { fmt.Printf(" (%f µs) \n", (float64(time.Now().UnixNano())-now)/1000.0) }()
-
+		if len(redirect_http_on_host) != 0 {
+			referer := r.Header.Get("Referer")
+			if len(referer) > 5 {
+				if referer[:5] == "http:" && strings.Contains(referer, redirect_http_on_host) {
+					http.Redirect(w, r, strings.Replace(referer, "http", "https", 1), http.StatusMovedPermanently)
+					return
+				}
+			}
+		}
 		if r.URL.Path != "/" && r.URL.Path[len(r.URL.Path)-1] == '/' {
 			http.Redirect(w, r, r.URL.Path[:len(r.URL.Path)-1], http.StatusMovedPermanently)
 			return
