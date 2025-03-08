@@ -50,15 +50,14 @@ func main() {
 		fmt.Printf("Request-URL: %s\n", r.URL.String())
 		now := float64(time.Now().UnixNano())
 		defer func() { fmt.Printf(" (%f µs) \n", (float64(time.Now().UnixNano())-now)/1000.0) }()
-		if len(redirect_http_on_host) != 0 {
-			referer := r.Header.Get("Referer")
-			if len(referer) > 5 {
-				if referer[:5] == "http:" && strings.Contains(referer, redirect_http_on_host) {
-					http.Redirect(w, r, strings.Replace(referer, "http", "https", 1), http.StatusMovedPermanently)
-					return
-				}
+
+		if len(redirect_http_on_host) != 0 && r.Header.Get("X-Forwarded-Proto") == "http" {
+			if strings.Contains(r.Header.Get("X-Forwarded-Host"), redirect_http_on_host) {
+				http.Redirect(w, r, fmt.Sprintf("https://%s", r.Host), http.StatusMovedPermanently)
+				return
 			}
 		}
+
 		if r.URL.Path != "/" && r.URL.Path[len(r.URL.Path)-1] == '/' {
 			http.Redirect(w, r, r.URL.Path[:len(r.URL.Path)-1], http.StatusMovedPermanently)
 			return
