@@ -59,20 +59,26 @@ func main() {
 				return
 			}
 		}
-		r.URL.Path = r.URL.Path[len(base_path):]
-		if r.URL.Path != "/" && r.URL.Path[len(r.URL.Path)-1] == '/' {
-			http.Redirect(w, r, r.URL.Path[:len(r.URL.Path)-1], http.StatusMovedPermanently)
+		path := r.URL.Path
+		if len(path) > len(base_path) {
+			path = path[len(base_path):]
+		} else {
+			path = "/"
+		}
+
+		if path != "/" && path[len(path)-1] == '/' {
+			http.Redirect(w, r, path[:len(path)-1], http.StatusMovedPermanently)
 			return
 		}
 
-		if r.URL.Path == "/" {
+		if path == "/" {
 			index_html(w)
 			return
 		}
 
-		assetPath := "./frontend-dist" + r.URL.Path
+		assetPath := "./frontend-dist" + path
 		if _, err := os.Stat(assetPath); err == nil {
-			ext := filepath.Ext(r.URL.Path)
+			ext := filepath.Ext(path)
 			mime_type := mime_map[ext]
 			if mime_type == "" {
 				mime_type = "text/plain"
