@@ -31,6 +31,8 @@ type MimeType struct {
 
 func main() {
 	redirect_http_on_host := os.Getenv("REDIRECT_TO_TLS_ON_HOST")
+	base_path := os.Getenv("BASE_PATH")
+
 	data, err := os.ReadFile("mime_types.json")
 	if err != nil {
 		log.Fatalf("failed to read mime_types.json: %v", err)
@@ -57,7 +59,7 @@ func main() {
 				return
 			}
 		}
-
+		r.URL.Path = r.URL.Path[len(base_path):]
 		if r.URL.Path != "/" && r.URL.Path[len(r.URL.Path)-1] == '/' {
 			http.Redirect(w, r, r.URL.Path[:len(r.URL.Path)-1], http.StatusMovedPermanently)
 			return
